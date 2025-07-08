@@ -1,0 +1,56 @@
+//
+// Created by 15082 on 2025/7/7.
+//
+
+#include "bsp_hrtim.h"
+#define TIM_PORT(time_port) 0x1UL << (17U+tim_port)
+#define TIM_CHANEL(time_port,CHANEL) (0x01<<(tim_port*2+CHANEL-1))
+
+#define range(num,min,max) (((num)>=(min)) && ((num)<=(max)))
+
+uint8_t the_active_hrtim = 0;
+
+struct_hrtim hrtim_ary[6+4];
+
+void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequency)
+{
+    hrtim_ary[tim_port].tim_port = tim_port;
+    hrtim_ary[tim_port].deadtime = 100;//默认开启死区 100cnt
+    if (range(target_frequency,FREQUENCY_MAX,FREQUENCY_MIN))
+        hrtim_ary[tim_port].frequency = target_frequency;
+    else hrtim_ary[tim_port].frequency = 25*1000;
+    hrtim_ary[tim_port].rate = 128ULL * 32ULL * 1000ULL * 1000ULL /4/ (uint32_t)target_frequency;
+    hrtim_ary[tim_port].count_ns = 0.244140625; //恒定值
+    HAL_HRTIM_WaveformOutputStart(hrtimx, TIM_CHANEL(tim_port,1)|TIM_CHANEL(tim_port,2));//chanel 从1开始
+    HAL_HRTIM_WaveformCounterStart(hrtimx, TIM_PORT(tim_port));
+}
+
+//target_duty输入百分比，100%为1
+void set_duty(e_tim tim_port, float target_duty)
+{
+    int32_t ccr;
+    ccr = hrtim_ary[tim_port].rate*target_duty;
+    __HAL_HRTIM_SetCompare(&hhrtim1,tim_port,HRTIM_COMPAREUNIT_1,ccr);
+}
+//输入单位nm，最高支持380ns
+void set_deadtime(e_tim tim_port,float deadtime_rising, float deadtime_falling)
+{
+    int deadtime_count_ris = 8*deadtime_rising/hrtim_ary[tim_port].count_ns;
+    int deadtime_count_fal = 8*deadtime_falling/hrtim_ary[tim_port].count_ns;
+    if (range(deadtime_count_ris,0,511) && range(deadtime_count_fal,0,511))
+    {
+        //tmd挨个改东西太多了，部分不太可能改的东西就写死了，不想弄了，下班！
+        HRTIM_DeadTimeCfgTypeDef deadtime_cfg;
+        deadtime_cfg.Prescaler = HRTIM_TIMDEADTIME_PRESCALERRATIO_MUL8; //默认8倍频
+        deadtime_cfg.RisingValue = deadtime_rising;
+        deadtime_cfg.FallingValue = deadtime_falling;
+        deadtime_cfg.RisingSign = HRTIM_TIMDEADTIME_RISINGSIGN_POSITIVE;
+        deadtime_cfg.RisingLock = HRTIM_TIMDEADTIME_RISINGLOCK_WRITE;
+        deadtime_cfg.RisingSignLock = HRTIM_TIMDEADTIME_RISINGSIGNLOCK_WRITE;
+        deadtime_cfg.FallingSign = HRTIM_TIMDEADTIME_FALLINGSIGN_NEGATIVE;
+        deadtime_cfg.FallingLock = HRTIM_TIMDEADTIME_FALLINGLOCK_WRITE;
+        deadtime_cfg.FallingSignLock = HRTIM_TIMDEADTIME_FALLINGSIGNLOCK_WRITE;
+        HAL_HRTIM_DeadTimeConfig(&hhrtim1,tim_port,&deadtime_cfg);
+    }
+    else Error_Handler();
+}
