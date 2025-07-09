@@ -16,8 +16,8 @@
  */
 
 //分辨率为1K和65536
-#define FREQUENCY_MAX  (4096*1000)
-#define FREQUENCY_MIN  (62500)
+#define FREQUENCY_MAX  (4096*1000/4)
+#define FREQUENCY_MIN  (62500/4)
 
 typedef enum {TIM_A = 0,TIM_B,TIM_C,TIM_D,TIM_E,TIM_F} e_tim;
 typedef enum {True,False} e_bool;

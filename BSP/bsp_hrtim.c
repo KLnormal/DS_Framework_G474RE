@@ -12,15 +12,24 @@ uint8_t the_active_hrtim = 0;
 
 struct_hrtim hrtim_ary[6+4];
 
+
+//频率的范围为15.62Khz ~ 1024K hz
 void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequency)
 {
+    HAL_HRTIM_WaveformCounterStop(&hhrtim1, TIM_PORT(tim_port));
     hrtim_ary[tim_port].tim_port = tim_port;
     hrtim_ary[tim_port].deadtime = 100;//默认开启死区 100cnt
-    if (range(target_frequency,FREQUENCY_MAX,FREQUENCY_MIN))
+    if (range(target_frequency,FREQUENCY_MIN,FREQUENCY_MAX))
         hrtim_ary[tim_port].frequency = target_frequency;
     else hrtim_ary[tim_port].frequency = 25*1000;
-    hrtim_ary[tim_port].rate = 128ULL * 32ULL * 1000ULL * 1000ULL /4/ (uint32_t)target_frequency;
+    hrtim_ary[tim_port].rate = 128ULL * 32ULL * 1000ULL * 1000ULL /4/ (uint32_t)hrtim_ary[tim_port].frequency;
     hrtim_ary[tim_port].count_ns = 0.244140625; //恒定值
+    HRTIM_TimeBaseCfgTypeDef pTimeBaseCfg;
+    pTimeBaseCfg.Period = hrtim_ary[tim_port].rate;
+    pTimeBaseCfg.RepetitionCounter = 0x00;
+    pTimeBaseCfg.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
+    pTimeBaseCfg.Mode = HRTIM_MODE_CONTINUOUS;
+    HAL_HRTIM_TimeBaseConfig(&hhrtim1, tim_port, &pTimeBaseCfg);
     HAL_HRTIM_WaveformOutputStart(hrtimx, TIM_CHANEL(tim_port,1)|TIM_CHANEL(tim_port,2));//chanel 从1开始
     HAL_HRTIM_WaveformCounterStart(hrtimx, TIM_PORT(tim_port));
 }
