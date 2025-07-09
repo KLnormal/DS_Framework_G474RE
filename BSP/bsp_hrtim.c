@@ -23,7 +23,7 @@ void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequ
         hrtim_ary[tim_port].frequency = target_frequency;
     else hrtim_ary[tim_port].frequency = 25*1000;
     hrtim_ary[tim_port].rate = 128ULL * 32ULL * 1000ULL * 1000ULL /4/ (uint32_t)hrtim_ary[tim_port].frequency;
-    hrtim_ary[tim_port].count_ns = 0.244140625; //恒定值
+    hrtim_ary[tim_port].count_ns = 7.8125; //恒定值，基于128Mhz固定频率
     HRTIM_TimeBaseCfgTypeDef pTimeBaseCfg;
     pTimeBaseCfg.Period = hrtim_ary[tim_port].rate;
     pTimeBaseCfg.RepetitionCounter = 0x00;
@@ -41,7 +41,7 @@ void set_duty(e_tim tim_port, float target_duty)
     ccr = hrtim_ary[tim_port].rate*target_duty;
     __HAL_HRTIM_SetCompare(&hhrtim1,tim_port,HRTIM_COMPAREUNIT_1,ccr);
 }
-//输入单位nm，最高支持380ns
+//输入单位nm，最高支持370ns
 void set_deadtime(e_tim tim_port,float deadtime_rising, float deadtime_falling)
 {
     int deadtime_count_ris = 8*deadtime_rising/hrtim_ary[tim_port].count_ns;
