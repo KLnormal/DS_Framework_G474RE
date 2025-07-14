@@ -32,6 +32,7 @@ void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequ
     HAL_HRTIM_TimeBaseConfig(&hhrtim1, tim_port, &pTimeBaseCfg);
     HAL_HRTIM_WaveformOutputStart(hrtimx, TIM_CHANEL(tim_port,1)|TIM_CHANEL(tim_port,2));//chanel 从1开始
     HAL_HRTIM_WaveformCounterStart(hrtimx, TIM_PORT(tim_port));
+
 }
 
 //target_duty输入百分比，100%为1
@@ -44,19 +45,21 @@ void set_duty(e_tim tim_port, float target_duty)
 //输入单位nm，最高支持370ns
 void set_deadtime(e_tim tim_port,float deadtime_rising, float deadtime_falling)
 {
-    int deadtime_count_ris = 8*deadtime_rising/hrtim_ary[tim_port].count_ns;
-    int deadtime_count_fal = 8*deadtime_falling/hrtim_ary[tim_port].count_ns;
+    int deadtime_count_ris = 4*deadtime_rising/hrtim_ary[tim_port].count_ns;
+    int deadtime_count_fal = 4*deadtime_falling/hrtim_ary[tim_port].count_ns;
+    // int deadtime_count_ris = deadtime_rising/hrtim_ary[tim_port].count_ns;
+    // int deadtime_count_fal = deadtime_falling/hrtim_ary[tim_port].count_ns;
     if (range(deadtime_count_ris,0,511) && range(deadtime_count_fal,0,511))
     {
         //tmd挨个改东西太多了，部分不太可能改的东西就写死了，不想弄了，下班！
         HRTIM_DeadTimeCfgTypeDef deadtime_cfg;
         deadtime_cfg.Prescaler = HRTIM_TIMDEADTIME_PRESCALERRATIO_MUL8; //默认8倍频
-        deadtime_cfg.RisingValue = deadtime_rising;
-        deadtime_cfg.FallingValue = deadtime_falling;
+        deadtime_cfg.RisingValue = deadtime_count_ris;
+        deadtime_cfg.FallingValue = deadtime_count_fal;
         deadtime_cfg.RisingSign = HRTIM_TIMDEADTIME_RISINGSIGN_POSITIVE;
         deadtime_cfg.RisingLock = HRTIM_TIMDEADTIME_RISINGLOCK_WRITE;
         deadtime_cfg.RisingSignLock = HRTIM_TIMDEADTIME_RISINGSIGNLOCK_WRITE;
-        deadtime_cfg.FallingSign = HRTIM_TIMDEADTIME_FALLINGSIGN_NEGATIVE;
+        deadtime_cfg.FallingSign = HRTIM_TIMDEADTIME_RISINGSIGN_POSITIVE;
         deadtime_cfg.FallingLock = HRTIM_TIMDEADTIME_FALLINGLOCK_WRITE;
         deadtime_cfg.FallingSignLock = HRTIM_TIMDEADTIME_FALLINGSIGNLOCK_WRITE;
         HAL_HRTIM_DeadTimeConfig(&hhrtim1,tim_port,&deadtime_cfg);
