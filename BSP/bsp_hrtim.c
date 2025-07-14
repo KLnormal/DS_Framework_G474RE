@@ -75,6 +75,7 @@ void hrtim_it_init(e_tim tim_port,  void (*f) (void))
 }
 void hrtim_it_use(e_tim tim_port)
 {
-    hrtim_callback_ary[tim_port]();
+    if (hrtim_callback_ary[tim_port] != NULL)
+        hrtim_callback_ary[tim_port]();
 }
 

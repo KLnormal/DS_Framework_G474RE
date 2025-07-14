@@ -7,6 +7,8 @@
 
 #include <bsp_hrtim.h>
 
-
+void adc_init(ADC_HandleTypeDef *adc_port);
+void converse_adc1();
+void converse_adc2();
 
 #endif //BSP_HRTIM_ADC_H
