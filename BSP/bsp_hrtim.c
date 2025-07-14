@@ -5,10 +5,12 @@
 #include "bsp_hrtim.h"
 #define TIM_PORT(time_port) 0x1UL << (17U+tim_port)
 #define TIM_CHANEL(time_port,CHANEL) (0x01<<(tim_port*2+CHANEL-1))
-
 #define range(num,min,max) (((num)>=(min)) && ((num)<=(max)))
+#define MAX_PORT_CNT 6
+#define CLOCK_F 170.00
 
-uint8_t the_active_hrtim = 0;
+typedef void (*f)(void);
+f hrtim_callback_ary[MAX_PORT_CNT+4];
 
 struct_hrtim hrtim_ary[6+4];
 
@@ -22,8 +24,8 @@ void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequ
     if (range(target_frequency,FREQUENCY_MIN,FREQUENCY_MAX))
         hrtim_ary[tim_port].frequency = target_frequency;
     else hrtim_ary[tim_port].frequency = 25*1000;
-    hrtim_ary[tim_port].rate = 128ULL * 32ULL * 1000ULL * 1000ULL /4/ (uint32_t)hrtim_ary[tim_port].frequency;
-    hrtim_ary[tim_port].count_ns = 7.8125; //恒定值，基于128Mhz固定频率
+    hrtim_ary[tim_port].rate = CLOCK_F * 32ULL * 1000ULL * 1000ULL /2/ (uint32_t)hrtim_ary[tim_port].frequency;
+    hrtim_ary[tim_port].count_ns = 1000/CLOCK_F;
     HRTIM_TimeBaseCfgTypeDef pTimeBaseCfg;
     pTimeBaseCfg.Period = hrtim_ary[tim_port].rate;
     pTimeBaseCfg.RepetitionCounter = 0x00;
@@ -45,8 +47,8 @@ void set_duty(e_tim tim_port, float target_duty)
 //输入单位nm，最高支持370ns
 void set_deadtime(e_tim tim_port,float deadtime_rising, float deadtime_falling)
 {
-    int deadtime_count_ris = 4*deadtime_rising/hrtim_ary[tim_port].count_ns;
-    int deadtime_count_fal = 4*deadtime_falling/hrtim_ary[tim_port].count_ns;
+    int deadtime_count_ris = 8*deadtime_rising/hrtim_ary[tim_port].count_ns;
+    int deadtime_count_fal = 8*deadtime_falling/hrtim_ary[tim_port].count_ns;
     // int deadtime_count_ris = deadtime_rising/hrtim_ary[tim_port].count_ns;
     // int deadtime_count_fal = deadtime_falling/hrtim_ary[tim_port].count_ns;
     if (range(deadtime_count_ris,0,511) && range(deadtime_count_fal,0,511))
@@ -65,4 +67,14 @@ void set_deadtime(e_tim tim_port,float deadtime_rising, float deadtime_falling)
         HAL_HRTIM_DeadTimeConfig(&hhrtim1,tim_port,&deadtime_cfg);
     }
     else Error_Handler();
+};
+void hrtim_it_init(e_tim tim_port,  void (*f) (void))
+{
+    __HAL_HRTIM_TIMER_ENABLE_IT(&hhrtim1,tim_port,HRTIM_TIM_IT_REP);
+    hrtim_callback_ary[tim_port] = f;
 }
+void hrtim_it_use(e_tim tim_port)
+{
+    hrtim_callback_ary[tim_port]();
+}
+

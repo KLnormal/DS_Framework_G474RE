@@ -19,6 +19,8 @@
 #define FREQUENCY_MAX  (4096*1000/4)
 #define FREQUENCY_MIN  (62500/4)
 
+typedef void (*hrtim_callback_ptr)(void);
+
 typedef enum {TIM_A = 0,TIM_B,TIM_C,TIM_D,TIM_E,TIM_F} e_tim;
 typedef enum {True,False} e_bool;
 typedef struct
@@ -29,7 +31,13 @@ typedef struct
  e_tim tim_port;
 }struct_hrtim;
 
+
 void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequency);
 void set_duty(e_tim tim_port, float target_duty);
 void set_deadtime(e_tim tim_port,float deadtime_rising, float deadtime_falling);
+void hrtim_it_init(e_tim tim_port,  void (*f) (void));
+void hrtim_it_use(e_tim tim_port);
+
+// void hrtim_it_init(e_tim tim_port,  void (*f) (void));
+
 #endif //APP_HRTIM_H

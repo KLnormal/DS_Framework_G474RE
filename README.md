@@ -1,7 +1,8 @@
 # DS_Framework_G474RE
 
 ## 快速开始
-1. 先clone到本地然后cubemx生成工程（和RM一样），要求配置HRTIM的时钟频率为128MHZ，32倍频
+1. 先clone到本地然后cubemx生成工程（和RM一样）
+2. 在bsp_hrtim.c文件开头的CLOCK_F宏定义中输入你设置的hrtim频率，不懂就不要乱动
 2. 在main.c中引入头文件
 `#include "bsp_hrtim.h"`
 3. 在main函数中，while(1) 开始前插入初始化代码
