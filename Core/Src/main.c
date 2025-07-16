@@ -103,31 +103,22 @@ int main(void)
   MX_DMA_Init();
   MX_HRTIM1_Init();
   MX_ADC1_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_HRTIM_WaveformCounterStart(&hhrtim1,HRTIM_TIMERID_MASTER);
-  HAL_HRTIM_WaveformOutputStart(&hhrtim1,HRTIM_OUTPUT_TA1);
-  HAL_HRTIM_WaveformOutputStart(&hhrtim1,HRTIM_OUTPUT_TA2);
-  HAL_HRTIM_WaveformCounterStart(&hhrtim1,HRTIM_TIMERID_TIMER_A);
-  __HAL_HRTIM_TIMER_ENABLE_IT(&hhrtim1,HRTIM_TIMERINDEX_TIMER_A,HRTIM_TIM_IT_REP);
-  // init_hrtim(&hhrtim1,TIM_A,15000);
-  // init_hrtim(&hhrtim1,TIM_B,15000);
-  // init_hrtim(&hhrtim1,TIM_C,15000);
-  // init_hrtim(&hhrtim1,TIM_D,25000);
-  // init_hrtim(&hhrtim1,TIM_E,120000);
-  // init_hrtim(&hhrtim1,TIM_F,15000);
-  // set_duty(TIM_E,0.1);
-  // set_deadtime(TIM_E,60,100);
-  uint32_t data[3] = {1,1,1};
-  HAL_Delay(100);
-  HAL_ADCEx_Calibration_Start(&hadc1,ADC_SINGLE_ENDED);
-  HAL_ADC_Start_DMA(&hadc1,data,3);
 
-  // HAL_ADCEx_Calibration_Start(&hadc2,ADC_SINGLE_ENDED);
-
-  // adc_init(&hadc1);
-  // adc_init(&hadc2);
-  // hrtim_it_init(TIM_A,converse_adc1);
-  // hrtim_it_init(TIM_B,converse_adc2);
+  init_hrtim(&hhrtim1,TIM_A,200000,0);
+  init_hrtim(&hhrtim1,TIM_B,200000,0);
+  init_hrtim(&hhrtim1,TIM_C,200000,0);
+  init_hrtim(&hhrtim1,TIM_D,25000,0);
+  init_hrtim(&hhrtim1,TIM_E,120000,0);
+  init_hrtim(&hhrtim1,TIM_F,15000,0);
+  init_hrtim(&hhrtim1,TIM_A,200000,1);
+  set_duty(TIM_E,0.1);
+  set_deadtime(TIM_E,60,100);
+  uint32_t data1[3] = {1,1,1};
+  uint32_t data2[3] = {1,1,1};
+  adc_init(&hadc1,data1,3);
+  adc_init(&hadc2,data2,3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -135,11 +126,6 @@ int main(void)
   while (1)
   {
     HAL_Delay(500);
-    // HAL_ADC_Start_DMA(&hadc1,data,3);
-    // HAL_ADC_Start(&hadc1);
-
-    // HAL_ADCEx_MultiModeStart_DMA(&hadc1,data,3);
-
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
     /* USER CODE END WHILE */
 

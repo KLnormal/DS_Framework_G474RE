@@ -14,11 +14,27 @@ f hrtim_callback_ary[MAX_PORT_CNT+4];
 
 struct_hrtim hrtim_ary[6+4];
 
-
 //频率的范围为15.62Khz ~ 1024K hz
-void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequency)
+void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequency, uint8_t master_flag)
 {
-    HAL_HRTIM_WaveformCounterStop(&hhrtim1, TIM_PORT(tim_port));
+    if (master_flag == 1)
+    {
+        HAL_HRTIM_WaveformCounterStop(hrtimx,HRTIM_TIMERID_MASTER);
+        int32_t master_period = hrtim_ary[tim_port].rate*2;
+        HRTIM_ADCTriggerCfgTypeDef pADCTriggerCfg;
+        pADCTriggerCfg.UpdateSource = HRTIM_ADCTRIGGERUPDATE_MASTER;
+        pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT13_MASTER_CMP1;
+        HAL_HRTIM_ADCTriggerConfig(hrtimx, HRTIM_ADCTRIGGER_1, &pADCTriggerCfg);
+        HRTIM_TimeBaseCfgTypeDef pTimeBaseCfg;
+        pTimeBaseCfg.Period = master_period;
+        pTimeBaseCfg.RepetitionCounter = 0x00;
+        pTimeBaseCfg.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
+        pTimeBaseCfg.Mode = HRTIM_MODE_CONTINUOUS;
+        HAL_HRTIM_TimeBaseConfig(hrtimx,HRTIM_TIMERINDEX_MASTER,&pTimeBaseCfg);
+        HAL_HRTIM_WaveformCounterStart(hrtimx,HRTIM_TIMERID_MASTER);
+        return;
+    }
+    HAL_HRTIM_WaveformCounterStop(hrtimx, TIM_PORT(tim_port));
     hrtim_ary[tim_port].tim_port = tim_port;
     hrtim_ary[tim_port].deadtime = 100;//默认开启死区 100cnt
     if (range(target_frequency,FREQUENCY_MIN,FREQUENCY_MAX))
@@ -34,7 +50,6 @@ void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequ
     HAL_HRTIM_TimeBaseConfig(&hhrtim1, tim_port, &pTimeBaseCfg);
     HAL_HRTIM_WaveformOutputStart(hrtimx, TIM_CHANEL(tim_port,1)|TIM_CHANEL(tim_port,2));//chanel 从1开始
     HAL_HRTIM_WaveformCounterStart(hrtimx, TIM_PORT(tim_port));
-
 }
 
 //target_duty输入百分比，100%为1
@@ -49,8 +64,6 @@ void set_deadtime(e_tim tim_port,float deadtime_rising, float deadtime_falling)
 {
     int deadtime_count_ris = 8*deadtime_rising/hrtim_ary[tim_port].count_ns;
     int deadtime_count_fal = 8*deadtime_falling/hrtim_ary[tim_port].count_ns;
-    // int deadtime_count_ris = deadtime_rising/hrtim_ary[tim_port].count_ns;
-    // int deadtime_count_fal = deadtime_falling/hrtim_ary[tim_port].count_ns;
     if (range(deadtime_count_ris,0,511) && range(deadtime_count_fal,0,511))
     {
         //tmd挨个改东西太多了，部分不太可能改的东西就写死了，不想弄了，下班！

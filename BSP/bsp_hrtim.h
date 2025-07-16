@@ -32,7 +32,7 @@ typedef struct
 }struct_hrtim;
 
 
-void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequency);
+void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequency, uint8_t master_flag);
 void set_duty(e_tim tim_port, float target_duty);
 void set_deadtime(e_tim tim_port,float deadtime_rising, float deadtime_falling);
 void hrtim_it_init(e_tim tim_port,  void (*f) (void));
