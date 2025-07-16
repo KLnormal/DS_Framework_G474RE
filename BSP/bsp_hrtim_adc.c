@@ -24,22 +24,32 @@ void adc_init(ADC_HandleTypeDef *adc_port)
         HAL_ADC_Start_DMA(adc_port, adc1_data,ADC1_PORTS);
         HAL_ADC_Start_DMA(adc_port, adc3_data,1);
     }
-    else if(adc_port == &hadc2)
-        HAL_ADC_Start_DMA(adc_port, adc2_data,ADC2_PORTS);
+    // else if(adc_port == &hadc2)
+    //     HAL_ADC_Start_DMA(adc_port, adc2_data,ADC2_PORTS);
 }
+
+int cnt1 = 0,cnt2 = 0;
 
 void converse_adc1()
 {
-    HAL_ADC_Start_DMA(&hadc1, adc1_data,ADC1_PORTS);
-    HAL_ADC_Start_DMA(&hadc3, adc3_data,1);
-    HAL_ADC_Start(&hadc1);
-    HAL_ADC_Start(&hadc3);
+    cnt1++;
+    if(cnt1 == 3) {
+        cnt1 = 0;
+        HAL_ADC_Start_DMA(&hadc1, adc1_data,ADC1_PORTS);
+        // HAL_ADC_Start_DMA(&hadc3, adc3_data,1);
+        HAL_ADC_Start(&hadc1);
+        // HAL_ADC_Start(&hadc3);
+    }
+
     // HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_4);
 }
 
 void converse_adc2()
-{
-    HAL_ADC_Start_DMA(&hadc2, adc2_data,ADC2_PORTS);
-    HAL_ADC_Start(&hadc2);
+{   cnt2++;
+    if(cnt2 == 3) {
+    cnt2 = 0;
+    // HAL_ADC_Start_DMA(&hadc2, adc2_data,ADC2_PORTS);
+    // HAL_ADC_Start(&hadc2);
     // HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_4);
+    }
 }
