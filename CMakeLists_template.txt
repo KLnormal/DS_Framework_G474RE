@@ -18,9 +18,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 
 #Uncomment for hardware floating point
-#add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
-#add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
-#add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
+add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
 
 #Uncomment for software floating point
 #add_compile_options(-mfloat-abi=soft)
@@ -48,13 +48,30 @@ else ()
     add_compile_options(-Og -g)
 endif ()
 
+function(recursion_include path)
+    if(IS_DIRECTORY ${path})
+        message("[Include] " ${path})
+        include_directories(${path})
+    endif()
+
+    file(GLOB ALL_SUB RELATIVE ${path} ${path}/*)
+    foreach(sub ${ALL_SUB})
+        if(IS_DIRECTORY ${path}/${sub})
+            recursion_include(${path}/${sub})
+        endif()
+    endforeach()
+endfunction()
+
 include_directories(${includes})
-include_directories(BSP)
 
 add_definitions(${defines})
 
-file(GLOB_RECURSE SOURCES ${sources} "BSP/*.*")
-include_directories(${CMAKE_SOURCE_DIR}/BSP)
+file(GLOB_RECURSE SOURCES ${sources} "BSP/*.*" "APP/*.*" "Components/*.*")
+recursion_include(${CMAKE_SOURCE_DIR}/BSP)
+recursion_include(${CMAKE_SOURCE_DIR}/APP)
+recursion_include(${CMAKE_SOURCE_DIR}/Components)
+recursion_include(${CMAKE_SOURCE_DIR}/External/Include)
+
 set(LINKER_SCRIPT $${CMAKE_SOURCE_DIR}/${linkerScript})
 
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=$${PROJECT_BINARY_DIR}/$${PROJECT_NAME}.map)
@@ -62,6 +79,9 @@ add_link_options(-mcpu=${mcpu} -mthumb -mthumb-interwork)
 add_link_options(-T $${LINKER_SCRIPT})
 
 add_executable($${PROJECT_NAME}.elf $${SOURCES} $${LINKER_SCRIPT})
+
+# 引 CMSIS-DSP 静态链接库，避免多次编译该项目。
+target_link_libraries(${PROJECT_NAME}.elf PUBLIC ${CMAKE_SOURCE_DIR}/External/libCMSISDSP.a)
 
 set(HEX_FILE $${PROJECT_BINARY_DIR}/$${PROJECT_NAME}.hex)
 set(BIN_FILE $${PROJECT_BINARY_DIR}/$${PROJECT_NAME}.bin)
