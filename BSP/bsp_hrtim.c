@@ -15,25 +15,25 @@ f hrtim_callback_ary[MAX_PORT_CNT+4];
 struct_hrtim hrtim_ary[6+4];
 
 //频率的范围为15.62Khz ~ 1024K hz
-void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequency, uint8_t master_flag)
+void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequency)
 {
-    if (master_flag == 1)
-    {
-        HAL_HRTIM_WaveformCounterStop(hrtimx,HRTIM_TIMERID_MASTER);
-        int32_t master_period = hrtim_ary[tim_port].rate*2;
-        HRTIM_ADCTriggerCfgTypeDef pADCTriggerCfg;
-        pADCTriggerCfg.UpdateSource = HRTIM_ADCTRIGGERUPDATE_MASTER;
-        pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT13_MASTER_CMP1;
-        HAL_HRTIM_ADCTriggerConfig(hrtimx, HRTIM_ADCTRIGGER_1, &pADCTriggerCfg);
-        HRTIM_TimeBaseCfgTypeDef pTimeBaseCfg;
-        pTimeBaseCfg.Period = master_period;
-        pTimeBaseCfg.RepetitionCounter = 0x00;
-        pTimeBaseCfg.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
-        pTimeBaseCfg.Mode = HRTIM_MODE_CONTINUOUS;
-        HAL_HRTIM_TimeBaseConfig(hrtimx,HRTIM_TIMERINDEX_MASTER,&pTimeBaseCfg);
-        HAL_HRTIM_WaveformCounterStart(hrtimx,HRTIM_TIMERID_MASTER);
-        return;
-    }
+    // if (master_flag == 1)
+    // {
+    //     HAL_HRTIM_WaveformCounterStop(hrtimx,HRTIM_TIMERID_MASTER);
+    //     int32_t master_period = hrtim_ary[tim_port].rate*2;
+    //     HRTIM_ADCTriggerCfgTypeDef pADCTriggerCfg;
+    //     pADCTriggerCfg.UpdateSource = HRTIM_ADCTRIGGERUPDATE_MASTER;
+    //     pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT13_MASTER_CMP1;
+    //     HAL_HRTIM_ADCTriggerConfig(hrtimx, HRTIM_ADCTRIGGER_1, &pADCTriggerCfg);
+    //     HRTIM_TimeBaseCfgTypeDef pTimeBaseCfg;
+    //     pTimeBaseCfg.Period = master_period;
+    //     pTimeBaseCfg.RepetitionCounter = 0x00;
+    //     pTimeBaseCfg.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
+    //     pTimeBaseCfg.Mode = HRTIM_MODE_CONTINUOUS;
+    //     HAL_HRTIM_TimeBaseConfig(hrtimx,HRTIM_TIMERINDEX_MASTER,&pTimeBaseCfg);
+    //     HAL_HRTIM_WaveformCounterStart(hrtimx,HRTIM_TIMERID_MASTER);
+    //     return;
+    // }
     HAL_HRTIM_WaveformCounterStop(hrtimx, TIM_PORT(tim_port));
     hrtim_ary[tim_port].tim_port = tim_port;
     hrtim_ary[tim_port].deadtime = 100;//默认开启死区 100cnt

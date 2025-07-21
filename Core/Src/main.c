@@ -27,7 +27,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bsp_hrtim.h"
-#include "bsp_hrtim_adc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -108,19 +107,15 @@ int main(void)
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
 
-  init_hrtim(&hhrtim1,TIM_A,200000,0);
-  init_hrtim(&hhrtim1,TIM_B,200000,0);
-  init_hrtim(&hhrtim1,TIM_C,200000,0);
-  init_hrtim(&hhrtim1,TIM_D,25000,0);
-  init_hrtim(&hhrtim1,TIM_E,120000,0);
-  init_hrtim(&hhrtim1,TIM_F,15000,0);
-  init_hrtim(&hhrtim1,TIM_A,200000,1);
-  set_duty(TIM_E,0.1);
+  init_hrtim(&hhrtim1,TIM_A,200000);
+  init_hrtim(&hhrtim1,TIM_B,200000);
+  init_hrtim(&hhrtim1,TIM_C,200000);
+  init_hrtim(&hhrtim1,TIM_D,25000);
+  init_hrtim(&hhrtim1,TIM_E,130000);
+  init_hrtim(&hhrtim1,TIM_F,15000);
+  init_hrtim(&hhrtim1,TIM_A,200000);
+  set_duty(TIM_E,0.3);
   set_deadtime(TIM_E,60,100);
-  uint32_t data1[3] = {1,1,1};
-  uint32_t data2[3] = {1,1,1};
-  adc_init(&hadc1,data1,3);
-  adc_init(&hadc2,data2,3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
