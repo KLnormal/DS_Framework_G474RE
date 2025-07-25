@@ -1,69 +1,83 @@
 //
 // Created by 15082 on 2025/7/7.
 //
-
 #include "bsp_hrtim.h"
+
+
 #define TIM_PORT(time_port) 0x1UL << (17U+tim_port)
 #define TIM_CHANEL(time_port,CHANEL) (0x01<<(tim_port*2+CHANEL-1))
 #define range(num,min,max) (((num)>=(min)) && ((num)<=(max)))
-#define MAX_PORT_CNT 6
-#define CLOCK_F 170.00
+#define fHRTIM 170.0f
 
-typedef void (*f)(void);
-f hrtim_callback_ary[MAX_PORT_CNT+4];
 
-struct_hrtim hrtim_ary[6+4];
+struct_hrtim hrtim_ary[7];
+//倍频表
+float prescaler[8] = {32, 16, 8, 4, 2, 1, 0.5f, 0.25f};
 
-//频率的范围为15.62Khz ~ 1024K hz
-void init_hrtim(HRTIM_HandleTypeDef *hrtimx, e_tim tim_port,int32_t target_frequency)
+
+//理论频率范围：330Hz ~ 2.72MHz
+void init_hrtim(HRTIM_HandleTypeDef *hhrtimx, e_tim tim_port, float target_frequency)
 {
-    // if (master_flag == 1)
-    // {
-    //     HAL_HRTIM_WaveformCounterStop(hrtimx,HRTIM_TIMERID_MASTER);
-    //     int32_t master_period = hrtim_ary[tim_port].rate*2;
-    //     HRTIM_ADCTriggerCfgTypeDef pADCTriggerCfg;
-    //     pADCTriggerCfg.UpdateSource = HRTIM_ADCTRIGGERUPDATE_MASTER;
-    //     pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT13_MASTER_CMP1;
-    //     HAL_HRTIM_ADCTriggerConfig(hrtimx, HRTIM_ADCTRIGGER_1, &pADCTriggerCfg);
-    //     HRTIM_TimeBaseCfgTypeDef pTimeBaseCfg;
-    //     pTimeBaseCfg.Period = master_period;
-    //     pTimeBaseCfg.RepetitionCounter = 0x00;
-    //     pTimeBaseCfg.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
-    //     pTimeBaseCfg.Mode = HRTIM_MODE_CONTINUOUS;
-    //     HAL_HRTIM_TimeBaseConfig(hrtimx,HRTIM_TIMERINDEX_MASTER,&pTimeBaseCfg);
-    //     HAL_HRTIM_WaveformCounterStart(hrtimx,HRTIM_TIMERID_MASTER);
-    //     return;
-    // }
-    HAL_HRTIM_WaveformCounterStop(hrtimx, TIM_PORT(tim_port));
-    hrtim_ary[tim_port].tim_port = tim_port;
-    hrtim_ary[tim_port].deadtime = 100;//默认开启死区 100cnt
-    if (range(target_frequency,FREQUENCY_MIN,FREQUENCY_MAX))
-        hrtim_ary[tim_port].frequency = target_frequency;
-    else hrtim_ary[tim_port].frequency = 25*1000;
-    hrtim_ary[tim_port].rate = CLOCK_F * 32ULL * 1000ULL * 1000ULL /2/ (uint32_t)hrtim_ary[tim_port].frequency;
-    hrtim_ary[tim_port].count_ns = 1000/CLOCK_F;
+    if (tim_port != MASTER) {
+        HAL_HRTIM_WaveformCountStop(hhrtimx, TIM_PORT(tim_port));
+    } else {
+        HAL_HRTIM_WaveformCountStop(hhrtimx, HRTIM_TIMERID_MASTER);
+    }
+
+    //倍频自适应，自动选择该PWM设定频率下分辨率最高的定时器倍频数
+    uint8_t i;
+    for (i = 0; i < 8; ++i) {
+        if (tim_port != MASTER) {
+            hrtim_ary[tim_port].rate = fHRTIM * 1000.0f * 1000.0f * prescaler[i] / 2.0f / target_frequency;
+        } else {
+            hrtim_ary[tim_port].rate = fHRTIM * 1000.0f * 1000.0f * prescaler[i] / target_frequency;
+        }
+        if (hrtim_ary[tim_port].rate <= 65503) {
+            if (hrtim_ary[tim_port].rate >= 1000) {
+                break;
+            } else {
+                i = 8;
+            }
+        }
+    }
+
+    //如果找不到合适的倍频数，说明该PWM设定频率已经不在HRTIM的调节范围内，调整为默认的60kHz
+    if (i > 7) {
+        hrtim_ary[tim_port].rate = 45333;
+        i = 0;
+    }
+
+
     HRTIM_TimeBaseCfgTypeDef pTimeBaseCfg;
-    pTimeBaseCfg.Period = hrtim_ary[tim_port].rate;
+    pTimeBaseCfg.Period = (uint32_t)hrtim_ary[tim_port].rate;
     pTimeBaseCfg.RepetitionCounter = 0x00;
-    pTimeBaseCfg.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
+    pTimeBaseCfg.PrescalerRatio = i;
     pTimeBaseCfg.Mode = HRTIM_MODE_CONTINUOUS;
-    HAL_HRTIM_TimeBaseConfig(&hhrtim1, tim_port, &pTimeBaseCfg);
-    HAL_HRTIM_WaveformOutputStart(hrtimx, TIM_CHANEL(tim_port,1)|TIM_CHANEL(tim_port,2));//chanel 从1开始
-    HAL_HRTIM_WaveformCounterStart(hrtimx, TIM_PORT(tim_port));
+    if (HAL_HRTIM_TimeBaseConfig(hhrtimx, tim_port, &pTimeBaseCfg) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    if (tim_port != MASTER) {
+        HAL_HRTIM_WaveformOutputStart(hhrtimx, TIM_CHANEL(tim_port, 1) + TIM_CHANEL(tim_port, 2));//chanel 从1开始
+    }
+    if (tim_port != MASTER) {
+        HAL_HRTIM_WaveformCountStart(hhrtimx, TIM_PORT(tim_port));
+    } else {
+        HAL_HRTIM_WaveformCountStart(hhrtimx, HRTIM_TIMERID_MASTER);
+    }
 }
 
 //target_duty输入百分比，100%为1
 void set_duty(e_tim tim_port, float target_duty)
 {
-    int32_t ccr;
-    ccr = hrtim_ary[tim_port].rate*target_duty;
-    __HAL_HRTIM_SetCompare(&hhrtim1,tim_port,HRTIM_COMPAREUNIT_1,ccr);
+    hhrtim1.Instance->sTimerxRegs[tim_port].CMP1xR = (uint32_t)(hrtim_ary[tim_port].rate * target_duty);
 }
+
 //输入单位nm，最高支持370ns
-void set_deadtime(e_tim tim_port,float deadtime_rising, float deadtime_falling)
+void set_deadtime(e_tim tim_port, float deadtime_rising, float deadtime_falling)
 {
-    int deadtime_count_ris = 8*deadtime_rising/hrtim_ary[tim_port].count_ns;
-    int deadtime_count_fal = 8*deadtime_falling/hrtim_ary[tim_port].count_ns;
+    uint32_t deadtime_count_ris = (uint32_t)(8.0f * deadtime_rising * fHRTIM / 1000.0f);
+    uint32_t deadtime_count_fal = (uint32_t)(8.0f * deadtime_falling * fHRTIM / 1000.0f);
     if (range(deadtime_count_ris,0,511) && range(deadtime_count_fal,0,511))
     {
         //tmd挨个改东西太多了，部分不太可能改的东西就写死了，不想弄了，下班！
@@ -77,18 +91,10 @@ void set_deadtime(e_tim tim_port,float deadtime_rising, float deadtime_falling)
         deadtime_cfg.FallingSign = HRTIM_TIMDEADTIME_RISINGSIGN_POSITIVE;
         deadtime_cfg.FallingLock = HRTIM_TIMDEADTIME_FALLINGLOCK_WRITE;
         deadtime_cfg.FallingSignLock = HRTIM_TIMDEADTIME_FALLINGSIGNLOCK_WRITE;
-        HAL_HRTIM_DeadTimeConfig(&hhrtim1,tim_port,&deadtime_cfg);
+        if (HAL_HRTIM_DeadTimeConfig(&hhrtim1,tim_port,&deadtime_cfg) != HAL_OK)
+        {
+            Error_Handler();
+        }
     }
     else Error_Handler();
-};
-void hrtim_it_init(e_tim tim_port,  void (*f) (void))
-{
-    __HAL_HRTIM_TIMER_ENABLE_IT(&hhrtim1,tim_port,HRTIM_TIM_IT_REP);
-    hrtim_callback_ary[tim_port] = f;
 }
-void hrtim_it_use(e_tim tim_port)
-{
-    if (hrtim_callback_ary[tim_port] != NULL)
-        hrtim_callback_ary[tim_port]();
-}
-
