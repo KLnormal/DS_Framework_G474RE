@@ -150,7 +150,7 @@ int main(void)
     init_hrtim(&hhrtim1, MASTER, 20000);
     HAL_GPIO_WritePin(EN1_GPIO_Port, EN1_Pin + EN2_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-      /* USER CODE END 2 */
+  /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
