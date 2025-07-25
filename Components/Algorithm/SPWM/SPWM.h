@@ -26,10 +26,7 @@ void SPWM_VoltigeInput(SPWM_HandleTypeDef *hspwm, float32_t Vsin, float32_t VDC)
   * @param  rate:电压瞬时值/直流母线电压
   * @retval None
   */
-void SPWM_RateInput(SPWM_HandleTypeDef *hspwm, float32_t rate) {
-    hspwm->duty_l = 0.5f * rate + 0.5f;
-    hspwm->duty_n = 0.5f * -rate + 0.5f;
-}
+void SPWM_RateInput(SPWM_HandleTypeDef *hspwm, float32_t rate);
 
 
 #endif
