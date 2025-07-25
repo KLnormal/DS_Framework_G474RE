@@ -1,13 +1,13 @@
-#ifndef _VOFA_H
-#define _VOFA_H
+#ifndef VOFA_H
+#define VOFA_H
+
 
 #include "main.h"
 
 
-typedef union {
-    float fdata;
-    uint32_t ldata;
-} FloatLongType;
+typedef struct {
+    float data;
+} __attribute__ ((packed)) Float_Data;
 
 
 void BSP_UART_TransmitFloat(UART_HandleTypeDef *huartx, int num, ...);

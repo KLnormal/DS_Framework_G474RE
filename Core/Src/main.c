@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "dac.h"
 #include "dma.h"
 #include "hrtim.h"
 #include "usart.h"
@@ -27,6 +28,13 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bsp_hrtim.h"
+#include "bsp_dual_adc.h"
+#include "bsp_uart.h"
+#include "generator.h"
+#include "SPWM.h"
+#include "SOGI.h"
+#include "PLL.h"
+#include "PR.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,27 +55,49 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+float32_t c_voltige, l_current;
+float32_t voltige_ref;
+SPWM_HandleTypeDef hspwm1;
+PLL_HandleTypeDef hpll1 = {
+        .pll_pi.Kp = -1000.0f,
+        .pll_pi.Kd = -1000.0f,
+        .w0 = 100 * PI,
+};
+PR_HandleTypeDef hpr1 = {
+        .a0 =  4.997193151e-4f,
+        .a1 = -1.998753960f,
+        .a2 =  9.990005614e-1f,
+};
+SOGI_HandleTypeDef hsogi1 = {
+        .b0 =  1.098452240e-2f,
+        .b1 =  8.627223716e-5f,
+        .a1 = -1.977786940f,
+        .a2 =  9.780309552e-1f,
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
+    if (hadc == &hadc1) {
+        voltige_ref = CosineGenerator(FrequencyGenerator(100.0f * PI, 0.00005f)) * 16.0f * SQRT2;
+        c_voltige = ((float32_t)(adc_val[0] & 0xFFFF) / 4095.0f * 3.0f - 1.5f) / 0.02941176470588235294117647058824f;
+        l_current = ((float32_t)(adc_val[0] >> 16) / 4095.0f * 3.0f - 1.5f) / 0.28f;
+        SOGI_Update(&hsogi1, c_voltige);
+        PLL_Update(&hpll1, hsogi1.alpha, hsogi1.beta, 0.00005f);
+//        SPWM_VoltigeInput(&hspwm1, voltige_ref, 20.0f);
+        PRController_Update(&hpr1, c_voltige, voltige_ref);
+        SPWM_RateInput(&hspwm1, hpr1.ctrl);
+        set_duty(TIM_A, hspwm1.duty_l);
+        set_duty(TIM_B, hspwm1.duty_n);
+        BSP_ADC_DualSampleStart();
+    }
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int cnt = 0;
-void funciont()
-{
-  cnt++;
-  if(cnt == 10000)
-  {
-    cnt = 0;
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-  }
-}
 
 /* USER CODE END 0 */
 
@@ -105,28 +135,33 @@ int main(void)
   MX_ADC1_Init();
   MX_ADC2_Init();
   MX_UART4_Init();
+  MX_DAC1_Init();
   /* USER CODE BEGIN 2 */
-
-  init_hrtim(&hhrtim1,TIM_A,200000);
-  init_hrtim(&hhrtim1,TIM_B,200000);
-  init_hrtim(&hhrtim1,TIM_C,200000);
-  init_hrtim(&hhrtim1,TIM_D,25000);
-  init_hrtim(&hhrtim1,TIM_E,130000);
-  init_hrtim(&hhrtim1,TIM_F,15000);
-  init_hrtim(&hhrtim1,TIM_A,200000);
-  set_duty(TIM_E,0.3);
-  set_deadtime(TIM_E,60,100);
-  /* USER CODE END 2 */
+    SOGI_Clear(&hsogi1);
+    PLL_Clear(&hpll1);
+    PRController_Init(&hpr1, 5e-2f, 5e-2f);
+    BSP_ADC_DualSampleInit();
+    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2047);
+    HAL_DAC_Start(&hdac1,DAC_CHANNEL_1);
+    set_deadtime(TIM_A,0,0);
+    set_deadtime(TIM_B,0,0);
+    init_hrtim(&hhrtim1,TIM_A,60000);
+    init_hrtim(&hhrtim1,TIM_B,60000);
+    init_hrtim(&hhrtim1, MASTER, 20000);
+    HAL_GPIO_WritePin(EN1_GPIO_Port, EN1_Pin + EN2_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_Delay(500);
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+//      HAL_Delay(1);
+      BSP_UART_TransmitFloat(&huart4, 4, voltige_ref, c_voltige, l_current, hpll1.angle);
+//      BSP_UART_TransmitFloat(&huart4, 3, voltige_ref, hpll1.angle, hsogi1.alpha);
   }
   /* USER CODE END 3 */
 }
@@ -147,12 +182,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV4;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV6;
   RCC_OscInitStruct.PLL.PLLN = 85;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
@@ -195,8 +229,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
